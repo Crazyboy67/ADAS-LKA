@@ -1,0 +1,75 @@
+roi:
+  top_frac: 0.45
+
+thresholds_bev:
+  bandpass_x: [0.40, 0.60]
+
+  auto_L: true
+  L_percentile: 90
+  L_offset: 8
+  l_white_min: 178
+  min_white_pixels: 500
+  backoff_step: 4
+  min_l_bound: 150
+
+  sobel_ksize: 3
+  gradx_min: 14
+
+  open_horiz: 7
+  close_vert: 21
+  keep_min_height: 50
+  keep_max_width: 54
+  small_blob_area: 160
+
+
+#[[0.38, 0.56],[0.57, 0.57],[0.53,0.44],[0.40,0.43]] video 1
+#[[0.36, 0.88],[0.64, 0.88],[0.58,0.59],[0.42,0.59]] video 2
+#[[0.40, 0.88],[0.66, 0.88],[0.60,0.59],[0.44,0.59]] video 3
+#[[0.38, 0.88],[0.68, 0.88],[0.60,0.59],[0.44,0.59]] video 4
+
+ipm:
+  src_norm: [[0.38, 0.88],[0.68, 0.88],[0.60,0.59],[0.44,0.59]]
+  dst_norm: [[0.30,1.00],[0.70,1.00],[0.70,0.00],[0.30,0.00]]
+  warp_W: 1280
+  warp_H: 360
+
+fit:
+  # Sliding windows
+  nwindows: 9
+  margin: 120
+  minpix: 30
+  poly_order: 2
+
+  left_margin: 150
+  right_margin: 120
+
+  # NEW: histogram bands + seed defaults
+  hist_left_band:  [0.41, 0.51]
+  hist_right_band: [0.49, 0.59]
+  hist_min_peak: 80
+
+  # NEW: track around previous poly when we already have one
+  use_prior_track: true
+  track_margin: 70
+
+  expected_lane_width_px: 640   # 0.5 * warp_W (since warp_W=1280)
+
+  # Confidence shaping
+  norm_pixel_count: 2000
+  norm_residual: 150.0
+  norm_coeff_delta: 80.0
+  conf_a: 4.5
+  conf_b: 1.9
+  conf_c: 1.0
+
+temporal:
+  alpha: 0.88
+  keep_last_on_drop: true
+  min_conf_for_update: 0.35
+
+overlay:
+  draw_ego: true
+  ego_alpha: 0.25
+
+metrics:
+  lane_width_m: 3.7
