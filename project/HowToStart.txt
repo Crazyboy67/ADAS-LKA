@@ -5,10 +5,10 @@ Video 1:
 python src/main.py --video data/video_test_01.mp4 --out-video outputs/annotated_01.mp4 --out-csv outputs/per_frame_01.csv --src-norm "0.38,0.56;0.57,0.57;0.53,0.44;0.40,0.43" --show
 
 Video 2:
-python src/main.py --video data/video_test_02.mp4 --out-video outputs/annotated_02.mp4 --out-csv outputs/per_frame_02.csv --src-norm "0.36,0.88;0.64,0.88;0.58,0.59;0.42,0.59"  --show
+python src/main.py --video data/video_test_02.mp4 --out-video outputs/annotated_02.mp4 --out-csv outputs/per_frame_02.csv --src-norm "0.36,0.88;0.72,0.88;0.62,0.59;0.42,0.59"  --show
 
 Video 3:
-python src/main.py --video data/video_test_03.mp4 --out-video outputs/annotated_03.mp4 --out-csv outputs/per_frame_03.csv --src-norm "0.40,0.88;0.66,0.88;0.60,0.59;0.44,0.59"  --show
+python src/main.py --video data/video_test_03.mp4 --out-video outputs/annotated_03.mp4 --out-csv outputs/per_frame_03.csv --src-norm "0.38,0.88;0.70,0.86;0.60,0.50;0.44,0.50"  --show
 
 Video 4:
 python src/main.py --video data/video_test_04.mp4 --out-video outputs/annotated_04.mp4 --out-csv outputs/per_frame_04.csv --src-norm "0.38,0.88;0.68,0.88;0.60,0.59;0.44,0.59"  --show
