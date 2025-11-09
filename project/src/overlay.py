@@ -10,6 +10,59 @@ class Colors:
     dashed_gray: tuple = (128, 128, 128)
     ego_fill: tuple = (0, 120, 200)   # polygon fill (BGR)
 
+
+def _safe_polyval(coeffs, y_vals):
+    if coeffs is None or y_vals is None: 
+        return None
+    x = np.polyval(coeffs, y_vals.astype(np.float32))
+    if not np.all(np.isfinite(x)):
+        return None
+    return x
+
+def _sanitize_pts_img(pts, img_shape, margin=64, min_unique_y=8):
+    """Keep points finite and not too far outside the image; ensure enough distinct y."""
+    if pts is None: 
+        return None
+    H, W = img_shape[:2]
+    pts = pts.astype(np.float32)
+    ok = np.isfinite(pts).all(axis=1)
+    pts = pts[ok]
+    if pts.size == 0:
+        return None
+    # Clip into a padded box to avoid huge coordinates inside OpenCV
+    x = np.clip(pts[:, 0], -margin, W + margin)
+    y = np.clip(pts[:, 1], -margin, H + margin)
+    pts = np.stack([x, y], axis=1)
+    # Need enough vertical support to be a curve
+    if np.unique(np.round(pts[:, 1])).size < min_unique_y:
+        return None
+    return pts
+
+def _warp_points_to_image_safe(pts_bev, Minv, roi_y0, img_shape):
+    if pts_bev is None or pts_bev.size == 0:
+        return None
+    pts = pts_bev.reshape(-1, 1, 2).astype(np.float32)
+    pts_img = cv2.perspectiveTransform(pts, Minv).reshape(-1, 2)
+    pts_img[:, 1] += roi_y0
+    return _sanitize_pts_img(pts_img, img_shape)
+
+def _lane_polygon_if_valid(left_pts_img, right_pts_img):
+    if left_pts_img is None or right_pts_img is None:
+        return None
+    # Sort by y; ensure right is to the right of left for most rows
+    lp = left_pts_img[np.argsort(left_pts_img[:, 1])]
+    rp = right_pts_img[np.argsort(right_pts_img[:, 1])]
+    n = min(len(lp), len(rp))
+    if n < 8:
+        return None
+    # Require a minimum median gap and non-crossing
+    gap = rp[:n, 0] - lp[:n, 0]
+    if np.median(gap) < 15 or np.sum(gap < 0) > n * 0.2:
+        return None
+    poly = np.vstack([lp[:n], rp[:n][::-1]])
+    return np.round(poly).astype(np.int32).reshape(-1, 1, 2)
+
+
 def _poly_points_from_coeffs(coeffs, y_vals):
     x = np.polyval(coeffs, y_vals)
     pts = np.stack([x, y_vals], axis=1).astype(np.float32)  # (x,y) in BEV
@@ -85,32 +138,41 @@ def draw_overlay_and_hud(
     left_pts_img = None
     right_pts_img = None
 
-    if model.left.coeffs is not None:
-        l_pts_bev = _poly_points_from_coeffs(model.left.coeffs, model.y_vals)
-        left_pts_img = _warp_points_to_image(l_pts_bev, Minv, roi_y0)
-    if model.right.coeffs is not None:
-        r_pts_bev = _poly_points_from_coeffs(model.right.coeffs, model.y_vals)
-        right_pts_img = _warp_points_to_image(r_pts_bev, Minv, roi_y0)
+    if model.left and model.left.coeffs is not None:
+        lx = _safe_polyval(model.left.coeffs, model.y_vals)
+        l_pts_bev = None if lx is None else np.stack([lx, model.y_vals], axis=1).astype(np.float32)
+    else:
+        l_pts_bev = None
+
+    if model.right and model.right.coeffs is not None:
+        rx = _safe_polyval(model.right.coeffs, model.y_vals)
+        r_pts_bev = None if rx is None else np.stack([rx, model.y_vals], axis=1).astype(np.float32)
+    else:
+        r_pts_bev = None
+
+    left_pts_img  = _warp_points_to_image_safe(l_pts_bev, Minv, roi_y0, img.shape)   if l_pts_bev is not None else None
+    right_pts_img = _warp_points_to_image_safe(r_pts_bev, Minv, roi_y0, img.shape)   if r_pts_bev is not None else None
 
     # 2) Ego-lane polygon (optional)
-    if left_pts_img is not None and right_pts_img is not None and overlay_cfg.get("draw_ego", True):
-        poly = _compute_lane_polygon_pts(left_pts_img, right_pts_img)
-        if poly is not None:
-            fill_alpha = float(overlay_cfg.get("ego_alpha", 0.25))
-            fill_color = colors.ego_fill
-            overlay = img.copy()
-            cv2.fillPoly(overlay, [poly], fill_color)
-            cv2.addWeighted(overlay, fill_alpha, img, 1 - fill_alpha, 0, dst=img)
+    poly = _lane_polygon_if_valid(left_pts_img, right_pts_img)
+    if overlay_cfg.get("draw_ego", True) and poly is not None:
+        alpha = float(overlay_cfg.get("ego_alpha", 0.25))
+        tmp = img.copy()
+        cv2.fillPoly(tmp, [poly], (0, 120, 200))
+        cv2.addWeighted(tmp, alpha, img, 1 - alpha, 0, dst=img)
 
     # 3) Draw lines (YES=solid color; NO=dashed gray)
-    if left_detected and left_pts_img is not None:
-        _draw_polyline(img, left_pts_img, colors.left_good, thickness=5)
-    elif left_pts_img is not None:
-        _draw_dashed_polyline(img, left_pts_img, colors.dashed_gray, thickness=3)
-    if right_detected and right_pts_img is not None:
-        _draw_polyline(img, right_pts_img, (255, 0, 0), thickness=5)  # pure blue in BGR
-    elif right_pts_img is not None:
-        _draw_dashed_polyline(img, right_pts_img, colors.dashed_gray, thickness=3)
+    if left_pts_img is not None:
+        if left_detected:
+            _draw_polyline(img, left_pts_img, (0, 200, 0), thickness=5)      # green
+        else:
+            _draw_dashed_polyline(img, left_pts_img, (140, 140, 140), 3)     # dashed gray
+
+    if right_pts_img is not None:
+        if right_detected:
+            _draw_polyline(img, right_pts_img, (255, 0, 0), thickness=5)     # blue
+        else:
+            _draw_dashed_polyline(img, right_pts_img, (140, 140, 140), 3)    # dashed gray
 
     # 4) HUD
     hud = f"Left: {'YES' if left_detected else 'NO'} | Right: {'YES' if right_detected else 'NO'} | Conf: {0.5*(left_conf+right_conf):.2f}"

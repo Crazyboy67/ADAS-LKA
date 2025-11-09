@@ -4,9 +4,9 @@ from lane_fit import LaneModel, SideFit
 
 @dataclass
 class TemporalConfig:
-    alpha: float = 0.8  # EMA for coefficients
+    alpha: float = 0.9  # EMA for coefficients
     keep_last_on_drop: bool = True
-    min_conf_for_update: float = 0.4
+    min_conf_for_update: float = 0.6
 
 class TemporalSmoother:
     def __init__(self, cfg_dict):

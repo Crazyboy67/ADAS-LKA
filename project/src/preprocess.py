@@ -248,7 +248,6 @@ def threshold_bev_2(bev_bgr, thr):
 
 def _hls_balance_exposure_inplace(hls):
     """
-    Approximate lib_photography.frame_HLS_balance_exposure:
     reduce L departures from mean L; keeps dtype uint8.
     """
     L = hls[:, :, 1].astype(np.float32)
@@ -263,7 +262,6 @@ def _hls_balance_exposure_inplace(hls):
 
 def _hls_balance_white_inplace(hls):
     """
-    Approximate lib_photography.frame_HLS_balance_white:
     push S so the least-saturated reference pixel goes to zero.
     """
     S = hls[:, :, 2].astype(np.int32)
@@ -273,7 +271,7 @@ def _hls_balance_white_inplace(hls):
     # among those, find the minimum Lneg
     Lneg_min = Lneg[mask_min_SLn].min()
     mask_max_Ln = (Lneg == Lneg_min)
-    # the “reference” min S is the S where both masks hold
+    #min S is the S where both masks hold
     ref = S[np.logical_and(mask_min_SLn, mask_max_Ln)]
     if ref.size > 0:
         S = S - int(ref[0])
@@ -284,7 +282,7 @@ def _hls_balance_white_inplace(hls):
 def _remove_highlights_and_shadows_inplace(hls, thd_highlight_L, thd_highlight_S,
                                            thd_shadow_L, thd_shadow_S):
     """
-    Zero out highlight/shadow pixels using HLS rules from the reference.
+    Zero out highlight/shadow pixels using HLS rules.
     """
     L = hls[:, :, 1]
     S = hls[:, :, 2]

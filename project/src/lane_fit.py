@@ -350,7 +350,7 @@ def _hough_bootstrap(binary_warped: np.ndarray, side: str) -> Optional[np.ndarra
 # Main entry
 # -----------------------------
 
-def fit_lanes_sliding_windows(binary_warped: np.ndarray, prior, cfg_fit_in: dict) -> LaneModel:
+def fit_lanes_sliding_windows(binary_warped: np.ndarray, prior, cfg: dict) -> LaneModel:
     """
     Curve-slider inspired sliding-window lane fit.
     - Seed with histogram peaks (smoothed)
@@ -359,7 +359,7 @@ def fit_lanes_sliding_windows(binary_warped: np.ndarray, prior, cfg_fit_in: dict
     - Stable polynomial fit (+ optional RANSAC)
     - Optional search-around-prior rescue
     """
-    cfg = _fit_cfg(cfg_fit_in or {})
+    cfg = _fit_cfg(cfg or {})
     H, W = binary_warped.shape
     poly_order = cfg["poly_order"]
 

@@ -110,7 +110,7 @@ def main():
         # 3) Threshold
         # bird_bin = threshold_bev(bird_bgr, cfg.get("thresholds_bev", {}))
 
-        bird_bin = threshold_bev_2(bird_bgr, cfg.get("thresholds_bev_2", {}))
+        bird_bin = threshold_bev_2(bird_bgr, cfg.get("thresholds_bev", {}))
 
         vis = cv2.resize(bird_bin, (640, int(640 * bird_bin.shape[0] / bird_bin.shape[1])))
         cv2.imshow("BEV binary (every ~2s)", vis)
@@ -119,7 +119,7 @@ def main():
         model = fit_lanes_sliding_windows(
             bird_bin,
             prior=prev_model,
-            cfg_fit_in=cfg.get("fit", {})
+            cfg=cfg.get("fit", {})
         )
 
         # 5) Temporal smoothing

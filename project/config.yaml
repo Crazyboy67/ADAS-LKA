@@ -2,36 +2,16 @@ roi:
   top_frac: 0.45
 
 thresholds_bev:
-  bandpass_x: [0.40, 0.60]
-
-  auto_L: true
-  L_percentile: 90
-  L_offset: 8
-  l_white_min: 178
-  min_white_pixels: 500
-  backoff_step: 4
-  min_l_bound: 150
-
-  sobel_ksize: 3
-  gradx_min: 14
-
-  open_horiz: 7
-  close_vert: 21
-  keep_min_height: 50
-  keep_max_width: 54
-  small_blob_area: 160
-
-thresholds_bev_2:
   # HLS + Sobel only; keep these false to stay minimal
   use_exposure_balance: true
   use_white_balance: true
   use_highlight_shadow: true
 
   # Sobel gates
-  thd_L_mag: 25
-  thd_S_mag: 27
-  thd_L_arg: 0
-  thd_S_arg: 0
+  thd_L_mag: 22
+  thd_S_mag: 25
+  thd_L_arg: 11
+  thd_S_arg: 11
   thd_L_y: 75
   use_mag_gate: true
   use_arg_gate: true
@@ -45,10 +25,9 @@ thresholds_bev_2:
   close_vert: 19
   keep_min_height: 20
   keep_max_width: 140
-  small_blob_area: 50
+  small_blob_area: 80
 
-  # Specular removal OFF (255)
-  spec_v_min: 255
+  spec_v_min: 248
 
 #[[0.38, 0.56],[0.57, 0.57],[0.53,0.44],[0.40,0.43]] video 1
 #[[0.36, 0.88],[0.64, 0.88],[0.58,0.59],[0.42,0.59]] video 2
@@ -61,44 +40,14 @@ ipm:
   warp_W: 1280
   warp_H: 360
 
-fit_2:
-  # Sliding windows
-  nwindows: 9
-  margin: 120
-  minpix: 30
-  poly_order: 2
-
-  left_margin: 150
-  right_margin: 120
-  
-
-  # NEW: histogram bands + seed defaults
-  hist_left_band:  [0.41, 0.51]
-  hist_right_band: [0.55, 0.95]
-  hist_min_peak: 40
-
-  # NEW: track around previous poly when we already have one
-  use_prior_track: true
-  track_margin: 80
-
-  expected_lane_width_px: 640   # 0.5 * warp_W (since warp_W=1280)
-
-  # Confidence shaping
-  norm_pixel_count: 2000
-  norm_residual: 150.0
-  norm_coeff_delta: 80.0
-  conf_a: 4.5
-  conf_b: 1.9
-  conf_c: 1.0
-
 fit:
   nwindows: 9
   margin: 120
   minpix: 30
   poly_order: 2
 
-  hist_left_band:  [0.10, 0.50]
-  hist_right_band: [0.50, 0.95]
+  hist_left_band:  [0.05, 0.40]
+  hist_right_band: [0.65, 0.98]
   hist_min_peak: 60
   hist_smooth_ksize: 31
 
@@ -131,7 +80,7 @@ fit:
 temporal:
   alpha: 0.88
   keep_last_on_drop: true
-  min_conf_for_update: 0.30
+  min_conf_for_update: 0.55
 
 overlay:
   draw_ego: true
