@@ -8,16 +8,16 @@ thresholds_bev:
   use_highlight_shadow: true
 
   # Sobel gates
-  thd_L_mag: 22
+  thd_L_mag: 15
   thd_S_mag: 25
   thd_L_arg: 11
   thd_S_arg: 11
   thd_L_y: 75
   use_mag_gate: true
   use_arg_gate: true
-  use_ly_gate:  true
+  use_ly_gate: true
 
-  # Corridor (wider for first tests)
+  # Corridor
   bandpass_x: [0.0, 0.95]
 
   # Morphology + shape
@@ -35,8 +35,8 @@ thresholds_bev:
 #[[0.38, 0.88],[0.68, 0.88],[0.60,0.59],[0.44,0.59]] video 4
 
 ipm:
-  src_norm: [[0.38, 0.88],[0.68, 0.88],[0.60,0.59],[0.44,0.59]]
-  dst_norm: [[0.30,1.00],[0.70,1.00],[0.70,0.00],[0.30,0.00]]
+  src_norm: [[0.38, 0.88], [0.68, 0.88], [0.60, 0.59], [0.44, 0.59]]
+  dst_norm: [[0.30, 1.00], [0.70, 1.00], [0.70, 0.00], [0.30, 0.00]]
   warp_W: 1280
   warp_H: 360
 
@@ -46,7 +46,7 @@ fit:
   minpix: 30
   poly_order: 2
 
-  hist_left_band:  [0.05, 0.40]
+  hist_left_band: [0.05, 0.40]
   hist_right_band: [0.65, 0.98]
   hist_min_peak: 60
   hist_smooth_ksize: 31
