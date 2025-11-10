@@ -4,7 +4,7 @@ import cv2
 import yaml
 import time
 import numpy as np
-from preprocess import threshold_bev, crop_road_roi, threshold_bev_2
+from preprocess import threshold_bev, crop_road_roi
 from warp import get_perspective_matrices
 from lane_fit import fit_lanes_sliding_windows
 from temporal import TemporalSmoother
@@ -108,9 +108,7 @@ def main():
         bird_bgr = cv2.warpPerspective(roi, M, warp_size, flags=cv2.INTER_LINEAR)
 
         # 3) Threshold
-        # bird_bin = threshold_bev(bird_bgr, cfg.get("thresholds_bev", {}))
-
-        bird_bin = threshold_bev_2(bird_bgr, cfg.get("thresholds_bev", {}))
+        bird_bin = threshold_bev(bird_bgr, cfg.get("thresholds_bev", {}))
 
         vis = cv2.resize(bird_bin, (640, int(640 * bird_bin.shape[0] / bird_bin.shape[1])))
         cv2.imshow("BEV binary (every ~2s)", vis)
