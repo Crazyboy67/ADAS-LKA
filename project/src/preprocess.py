@@ -10,14 +10,12 @@ def crop_road_roi(frame, roi_cfg):
 
 def threshold_bev(bev_bgr, thr):
     """
-    CLAHE-free lane mask in BEV using only HLS + Sobel features.
+    Lane mask in BEV using HLS + Sobel features.
     Returns a uint8 mask (0 or 255).
     """
-
     # ------------------------------
-    # Parameters (minimal, Sobel-only)
+    # Parameters
     # ------------------------------
-    # Optionally keep these off (defaults) to stay "HLS + Sobel only"
     use_exposure_balance = bool(thr.get("use_exposure_balance", False))
     use_white_balance    = bool(thr.get("use_white_balance",   False))
     use_highlight_shadow = bool(thr.get("use_highlight_shadow", False))
@@ -33,21 +31,20 @@ def threshold_bev(bev_bgr, thr):
     use_arg_gate = bool(thr.get("use_arg_gate", True))
     use_ly_gate  = bool(thr.get("use_ly_gate",  True))
 
-    # Corridor (apply to final mask)
+    # Corridor
     bandpass_x = thr.get("bandpass_x", [0.40, 0.60])
 
-    # Morphology and shape filtering (optional but helpful)
+    # Morphology and shape filtering
     open_horiz = int(thr.get("open_horiz", 7))
     close_vert = int(thr.get("close_vert", 21))
     keep_min_height = int(thr.get("keep_min_height", 50))
     keep_max_width  = int(thr.get("keep_max_width",  54))
     small_blob_area = int(thr.get("small_blob_area", 160))
 
-    # (Optional) specular cleanup — OFF by default to keep “HLS+Sobel only”
-    spec_v_min = int(thr.get("spec_v_min", 255))  # 255 => disabled
+    spec_v_min = int(thr.get("spec_v_min", 255))
 
     # ------------------------------
-    # 1) HLS conversion (no CLAHE/bilateral)
+    # 1) HLS conversion
     # ------------------------------
     hls = cv2.cvtColor(bev_bgr, cv2.COLOR_BGR2HLS).astype(np.uint8)
 
@@ -74,7 +71,6 @@ def threshold_bev(bev_bgr, thr):
     Smag = np.sqrt(Sx64 * Sx64 + Sy64 * Sy64)
     Sarg = np.abs(np.degrees(np.arctan2(Sy64, Sx64)) - 90.0)
 
-    # scale like before (centered around 127)
     Lx_u8, Ly_u8, Lmag_u8, Larg_u8 = _scale_sobel_to_u8(Lx64, Ly64, Lmag, Larg)
     Sx_u8, Sy_u8, Smag_u8, Sarg_u8 = _scale_sobel_to_u8(Sx64, Sy64, Smag, Sarg)
 
@@ -117,7 +113,7 @@ def threshold_bev(bev_bgr, thr):
     core = cv2.bitwise_and(core, gate)
 
     # ------------------------------
-    # 5) (Optional) specular cleanup (disabled if spec_v_min==255)
+    # 5) specular cleanup
     # ------------------------------
     if spec_v_min < 255:
         V = cv2.cvtColor(bev_bgr, cv2.COLOR_BGR2HSV)[:, :, 2]
@@ -133,7 +129,7 @@ def threshold_bev(bev_bgr, thr):
         core = cv2.bitwise_and(core, cv2.bitwise_not(kill))
 
     # ------------------------------
-    # 6) Morphology + shape filter (lane-like)
+    # 6) Morphology + shape filter
     # ------------------------------
     if open_horiz > 0:
         core = cv2.morphologyEx(core, cv2.MORPH_OPEN,
@@ -166,7 +162,6 @@ def _hls_balance_exposure_inplace(hls):
     max_L = float(np.max(L))
     min_L = float(np.min(L))
     if max_L != min_L:
-        # exposure_correction_ratio = 1 in the reference
         L = L - np.abs((L - mean_L) / (max_L - min_L)) * (L - mean_L)
     hls[:, :, 1] = np.clip(L, 0, 255).astype(np.uint8)
 
@@ -209,7 +204,7 @@ def _remove_highlights_and_shadows_inplace(hls, thd_highlight_L, thd_highlight_S
 
 def _scale_sobel_to_u8(sx, sy, smag, sarg_deg_from_vertical):
     """
-    Mimic lib_frame.frame_scale_uint8 behavior: scale each into uint8 around 127.
+    Scale each into uint8 around 127.
     """
     def _scale(arr):
         arr = arr.astype(np.float32)

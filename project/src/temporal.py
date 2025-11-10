@@ -4,7 +4,7 @@ from lane_fit import LaneModel, SideFit
 
 @dataclass
 class TemporalConfig:
-    alpha: float = 0.9  # EMA for coefficients
+    alpha: float = 0.9
     keep_last_on_drop: bool = True
     min_conf_for_update: float = 0.6
 
@@ -21,7 +21,6 @@ class TemporalSmoother:
             return cur
         if cur is None:
             return prev
-        # match vector lengths by padding on left
         n = max(len(prev), len(cur))
         p = np.pad(prev, (n - len(prev), 0))
         c = np.pad(cur, (n - len(cur), 0))
@@ -31,7 +30,6 @@ class TemporalSmoother:
 
     def _smooth_side(self, prev_side: SideFit, cur_side: SideFit) -> SideFit:
         if cur_side.coeffs is None and self.cfg.keep_last_on_drop and prev_side and prev_side.coeffs is not None:
-            # keep previous, but decay confidence slightly
             new_conf = max(0.0, prev_side.confidence * 0.9)
             return SideFit(ok=True, coeffs=prev_side.coeffs.copy(), residual=prev_side.residual,
                            pixel_count=prev_side.pixel_count, confidence=new_conf)
@@ -39,9 +37,7 @@ class TemporalSmoother:
         if prev_side is None or prev_side.coeffs is None or cur_side.coeffs is None:
             return cur_side
 
-        # Only update if current confidence is reasonable
         if cur_side.confidence < self.cfg.min_conf_for_update:
-            # small nudge towards current
             coeffs = self._smooth_coeffs(prev_side.coeffs, cur_side.coeffs)
             return SideFit(ok=True, coeffs=coeffs, residual=cur_side.residual,
                            pixel_count=cur_side.pixel_count, confidence=cur_side.confidence*0.95)

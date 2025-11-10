@@ -1,4 +1,3 @@
-# src/lane_fit.py
 import cv2
 import numpy as np
 import warnings
@@ -7,7 +6,7 @@ from typing import Optional, Tuple, List
 
 
 # -----------------------------
-# Public data structures
+# Data structures
 # -----------------------------
 
 @dataclass
@@ -28,13 +27,12 @@ class LaneModel:
 
 
 # -----------------------------
-# Config helpers (defaults)
+# Config helpers
 # -----------------------------
 
 def _fit_cfg(cfg: dict) -> dict:
     """Flatten/normalize the 'fit' dict and provide robust defaults."""
     f = dict(cfg or {})
-    # primary knobs (aligned with your existing config names)
     f.setdefault("nwindows", 9)
     f.setdefault("margin", 120)
     f.setdefault("minpix", 30)
@@ -56,10 +54,10 @@ def _fit_cfg(cfg: dict) -> dict:
     f.setdefault("track_margin", 70)
 
     # curve-slider style per-window sanity
-    f.setdefault("max_pixel_inside", 1500)     # reject windows that grab too much (barriers)
-    f.setdefault("max_width_not_a_line", 160)  # px spread inside a window to still call it a line
-    f.setdefault("min_pixel_confindex", 12)    # window counted as "hit" for confindex
-    f.setdefault("thd_confindex", 30)          # % windows hit to label as "Dashed" vs "Solid"
+    f.setdefault("max_pixel_inside", 1500)
+    f.setdefault("max_width_not_a_line", 160)
+    f.setdefault("min_pixel_confindex", 12)
+    f.setdefault("thd_confindex", 30)
 
     # residual & confidence shaping (compatible with your earlier scheme)
     f.setdefault("norm_pixel_count", 2000)
@@ -84,7 +82,7 @@ def _fit_cfg(cfg: dict) -> dict:
 
 
 # -----------------------------
-# Numeric helpers (stable polyfit)
+# Numeric helpers
 # -----------------------------
 
 def _polyfit_power_normalized(y, x, order=2):
@@ -99,25 +97,20 @@ def _polyfit_power_normalized(y, x, order=2):
 
     ymin = float(np.min(y)); ymax = float(np.max(y))
     if ymax == ymin:
-        # degenerate vertical extent -> constant fit
         return np.array([0.0, float(np.mean(x))]) if order >= 1 else np.array([float(np.mean(x))])
 
     y0 = 0.5 * (ymin + ymax)
     s  = 0.5 * (ymax - ymin)
     z  = (y - y0) / s
 
-    # fit in z; suppress local warnings only
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', Warning)
-        c_desc = np.polyfit(z, x, order)  # descending powers in z
+        c_desc = np.polyfit(z, x, order)
 
     # convert z-polynomial to y-polynomial (power basis)
     n = len(c_desc) - 1
-    # back-convert: x = sum_k c_k * ((y - y0)/s)^k
-    # expand (y - y0)^k via binomial; accumulate as power of y
     c_asc = c_desc[::-1]  # ascending powers in z
     a_asc = np.zeros(n + 1, dtype=np.float64)
-    # precompute powers of (-y0) for speed
     from math import comb
     for k in range(n + 1):
         ck_over = c_asc[k] / (s ** k)
@@ -150,7 +143,6 @@ def _confidence(pixel_count, residual, coeff_delta, cfg_fit):
     delt  = min(coeff_delta, cfg_fit["norm_coeff_delta"]) / float(cfg_fit["norm_coeff_delta"])
     a, b, c = cfg_fit["conf_a"], cfg_fit["conf_b"], cfg_fit["conf_c"]
     score = a * n_pix - b * res - c * delt
-    # sigmoid
     return float(1. / (1. + np.exp(-score)))
 
 
@@ -226,12 +218,10 @@ def _window_slide_one_curve(
     max_pix_inside = cfg_fit["max_pixel_inside"]
     max_width = cfg_fit["max_width_not_a_line"]
 
-    # precompute nonzeros
     nonzero = binary_warped.nonzero()
     nonzeroy = np.array(nonzero[0])
     nonzerox = np.array(nonzero[1])
 
-    # exclude pixels already assigned to other curves
     if used_inds_mask is not None and used_inds_mask.size == nonzerox.size:
         available = np.where(~used_inds_mask)[0]
         nonzerox = nonzerox[available]
@@ -280,14 +270,11 @@ def _window_slide_one_curve(
 
         window_hits.append(take.size)
 
-    # flatten indices
     lane_inds = np.concatenate(lane_inds_list) if len(lane_inds_list) else np.array([], dtype=int)
 
-    # basic "confidence index" (% of windows with enough pixels)
     hits_per_window = np.array(window_hits, dtype=int)
     confindex = int(100 * np.sum(hits_per_window >= cfg_fit["min_pixel_confindex"]) / max(1, len(hits_per_window)))
 
-    # crude line type classification (optional, not used downstream)
     if confindex >= 85:
         linetype = "Solid"
     elif confindex >= cfg_fit["thd_confindex"]:
@@ -295,55 +282,17 @@ def _window_slide_one_curve(
     else:
         linetype = "No Line"
 
-    # compute a rough signed distance at y=H-1 (negative: right of center; positive: left)
     center_x = W / 2.0
     dist_at_0 = float(seed_x - center_x)
 
     return {
-        "inds": lane_inds,                    # indices in the *full* nonzero list
-        "drawn_windows": drawn_windows,       # rectangles
+        "inds": lane_inds,
+        "drawn_windows": drawn_windows,
         "confindex": confindex,
         "linetype": linetype,
         "dist_at_0": dist_at_0,
         "hits_windows": hits_per_window
     }
-
-
-# -----------------------------
-# Hough (optional bootstrap)
-# -----------------------------
-
-def _hough_bootstrap(binary_warped: np.ndarray, side: str) -> Optional[np.ndarray]:
-    """
-    Very small helper: try to spot a strong line segment and fit a poly2.
-    Returns coeffs or None.
-    """
-    H, W = binary_warped.shape
-    edges = cv2.Canny(binary_warped, 50, 150)
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180.0, threshold=40, minLineLength=40, maxLineGap=20)
-    if lines is None:
-        return None
-    # pick the segment whose midpoint is closest to left/right third
-    if side == "left":
-        target_x = W * 0.33
-    else:
-        target_x = W * 0.67
-
-    best = None
-    best_d = 1e9
-    for l in lines[:, 0, :]:
-        x1, y1, x2, y2 = map(int, l)
-        xm = 0.5 * (x1 + x2)
-        d = abs(xm - target_x)
-        if d < best_d:
-            best = (x1, y1, x2, y2)
-            best_d = d
-    if best is None:
-        return None
-    x1, y1, x2, y2 = best
-    y = np.array([y1, y2], dtype=float)
-    x = np.array([x1, x2], dtype=float)
-    return _fit_poly_from_points_stable(y, x, order=2)
 
 
 # -----------------------------
@@ -387,15 +336,12 @@ def fit_lanes_sliding_windows(binary_warped: np.ndarray, prior, cfg: dict) -> La
         rightx_base = int(np.clip(leftx_base + wpx, 10, W - 10))
 
     # 3) multi-curve discovery like lib_curve_slider (erase histogram around a found curve)
-    #    We'll just attempt two curves (left/right); you can extend if needed.
     used_inds_mask = np.zeros(binary_warped.nonzero()[0].shape[0], dtype=bool)
 
     cand = []
     for seed_x in [leftx_base, rightx_base]:
         c = _window_slide_one_curve(binary_warped, int(seed_x), used_inds_mask, cfg)
-        # Mark used pixels to avoid re-using on the other curve
         nonzero = binary_warped.nonzero()
-        base_map = np.arange(nonzero[0].shape[0])
         if c["inds"].size:
             used_inds_mask[c["inds"]] = True
         cand.append(c)
@@ -407,7 +353,6 @@ def fit_lanes_sliding_windows(binary_warped: np.ndarray, prior, cfg: dict) -> La
         return "left" if seed_x < center_x else "right"
 
     # if seeds crossed, reassign by distance to center
-    # collect candidates explicitly for each side
     cands_left, cands_right = [], []
     for c, sx in zip(cand, [leftx_base, rightx_base]):
         (cands_left if side_of_seed(sx) == "left" else cands_right).append(c)
@@ -495,7 +440,7 @@ def fit_lanes_sliding_windows(binary_warped: np.ndarray, prior, cfg: dict) -> La
 
 
 # -----------------------------
-# RANSAC (stable)
+# RANSAC
 # -----------------------------
 
 def _robust_polyfit_ransac(y, x, order=2, iters=200, thresh=6.0):

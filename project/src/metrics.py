@@ -1,7 +1,3 @@
-# src/metrics.py
-# Metrics for classical LKA: curve error, detection accuracy, stability.
-# No external deps beyond numpy + stdlib.
-
 from __future__ import annotations
 import argparse
 import csv
@@ -88,12 +84,10 @@ class DetectionMetrics:
 
 @dataclass
 class StabilityMetrics:
-    # lateral offset stability (meters)
     offset_mean_m: float
     offset_std_m: float
     offset_abs_diff_med_m: float
     offset_abs_diff_p95_m: float
-    # optional polynomial coefficient jitter (if columns exist)
     have_poly_coeffs: bool
     coeff_jitter_left: Optional[Dict[str, float]] = None
     coeff_jitter_right: Optional[Dict[str, float]] = None
@@ -132,7 +126,6 @@ def detection_metrics_from_csv(csv_path: str, tau: float = 0.6) -> DetectionMetr
     with open(csv_path, newline="") as f:
         r = csv.DictReader(f)
         for row in r:
-            # If your CSV already has 0/1 flags, we can trust them, otherwise derive from conf
             if "left_detected" in row and "right_detected" in row:
                 ld = int(float(row["left_detected"]))
                 rd = int(float(row["right_detected"]))
@@ -205,7 +198,6 @@ def stability_from_csv(csv_path: str) -> StabilityMetrics:
     else:
         off_mean = off_std = off_abs_diff_med = off_abs_diff_p95 = math.nan
 
-    # Optional: coefficient jitter if you logged them in CSV
     keysL = ("left_a", "left_b", "left_c")
     keysR = ("right_a", "right_b", "right_c")
     haveL = all(k in rows[0] for k in keysL) if rows else False

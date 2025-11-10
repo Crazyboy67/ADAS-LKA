@@ -20,7 +20,7 @@ def get_perspective_matrices(img_shape, ipm_cfg, src_abs=None):
     else:
         src = np.array(src_abs, dtype=np.float32)
 
-    dst = _points_from_norm((warp_H, warp_W), dst_norm)  # note: use warp size as "shape"
+    dst = _points_from_norm((warp_H, warp_W), dst_norm)
     M = cv2.getPerspectiveTransform(src, dst)
     Minv = cv2.getPerspectiveTransform(dst, src)
     return M, Minv, (warp_W, warp_H)
